@@ -1,0 +1,189 @@
+#Version: oct 2022
+
+import glob
+import re
+import sys
+from os.path import join
+
+#########################################
+## SCRIPT PARAMETERS - READ FROM CONFIG FILE 
+
+# Directory with input fastq files and reference genome
+DATADIR=config["DATADIR"]
+
+# Reads file extension (FIRST PART OF FILENAME WILL BE USED AS SAMPLE ID)
+ext1=config["ext1"]
+ext2=config["ext2"]
+
+# Reference genome file
+refgen=config["refgen"]
+
+# Variant calling parameters
+# mincov = the minimum number of reads covering a site to be considered (snippy default=10)
+mincov=config["mincov"]
+# min frac = the minimum proportion of those reads which must differ from the reference
+minfrac=config["minfrac"]
+
+# Consensus building parameters
+# low coverage threshold
+lowcov=config["lowcov"]
+#########################################
+
+SAMPLES, = glob_wildcards(DATADIR+"{sample}"+ext1)
+RESDIR = "results/"
+
+def message(txt):
+	sys.stderr.write("+++++ " + txt + "\n")
+
+def errormessage(txt):
+	sys.stderr.write("ERROR " + txt + "\n")
+
+NBSAMPLES = len(SAMPLES)
+
+message(str(NBSAMPLES)+" samples will be mapped:")
+for i in SAMPLES:
+        message(str(i))
+
+# Rules not sent on jobs
+localrules: All 
+
+
+# Rules
+rule All:
+	input:
+		expand("Results/"+"{smp}"+"_consensus2.fasta",smp=SAMPLES),
+		expand("Results/{smp}_mapping.stats",smp=SAMPLES),
+		DATADIR+refgen+".bwt.2bit.64",
+
+rule BWAindexRef:
+	input:
+		Ref=DATADIR+refgen
+	output:
+		DATADIR+refgen+".bwt.2bit.64"
+	params:
+		clust_log="/dev/null"
+	conda:
+		"Mapping_env.yaml"
+	shell:
+		"""
+		echo "Indexing reference {input}"
+		bwa-mem2 index {input}
+		echo "Done !"
+		"""
+
+rule BWAmemRef:
+	input:
+		R1=DATADIR+"{smp}"+ext1,
+		R2=DATADIR+"{smp}"+ext2,
+		Ref=rules.BWAindexRef.output,
+		Refpath=DATADIR+refgen
+	output:
+		temp("Results/Intermediary_files/{smp}_mapping-to-ref.sam")
+	params:
+		clust_log="Logs/{smp}_mapping-to-ref.log"
+	conda:
+		"Mapping_env.yaml"
+	shell:
+		"""
+		echo "Round 1 assembly of {input.R1} on {input.Refpath}"
+		bwa-mem2 mem -L 8,8 -B 2 {input.Refpath} {input.R1} {input.R2} > {output}
+		echo "Done ! The output {output} of this rule will be removed and replaced by the sorted version."
+		"""
+
+rule samtoolsConsensus:
+	input:
+		rules.BWAmemRef.output
+	output:
+		"Results/Intermediary_files/{smp}_consensus1.fasta"
+	params:
+		clust_log="Logs/{smp}_consensus1.log",
+		tmpsort="Results/Intermediary_files/{smp}_mapping_to_ref_sort.sam"
+	conda:
+		"samtools_env.yaml"
+	shell:
+		"""
+		echo "Sorting and consensus from Round 1 assembly"
+		samtools sort {input} -O sam -o {params.tmpsort}
+		samtools consensus -a -f fasta --show-del yes {params.tmpsort} -o {output}
+		echo "Done !"
+		"""
+
+rule BWAindexCons:
+	input:
+		rules.samtoolsConsensus.output
+	output:
+		"Results/Intermediary_files/{smp}_consensus1.fasta"+".bwt.2bit.64"
+	params:
+		clust_log="/dev/null"
+	conda:
+		"Mapping_env.yaml"
+	shell:
+		"""
+		echo "Indexing consensus {input} to use it as reference for next assembly round"
+		bwa-mem2 index {input}
+		echo "Done !"
+		"""
+
+rule BWAmemCons:
+	input:
+		R1=DATADIR+"{smp}"+ext1,
+		R2=DATADIR+"{smp}"+ext2,
+		Ref=rules.BWAindexCons.output,
+		Refpath=rules.samtoolsConsensus.output
+	output:
+		temp("Results/Intermediary_files/{smp}_mapping_to_cons.sam")
+	params:
+		clust_log="Logs/{smp}_mapping-to-cons.log"
+	conda:
+		"Mapping_env.yaml"
+	shell:
+		"""
+		echo "Assembly of {input.R1} on {input.Refpath}"
+		bwa-mem2 mem {input.Refpath} {input.R1} {input.R2} > {output}
+		echo "Done ! The output {output} of this rule will be removed and replaced by the sorted version."
+		"""
+
+rule samtoolsConsensus2:
+	input:
+		rules.BWAmemCons.output
+	output:
+		tmpsort="Results/Intermediary_files/{smp}_mapping_to_cons_sort.sam",
+		outfile="Results/{smp}_consensus2.fasta"
+	params:
+		clust_log="Logs/{smp}_consensus2.log",
+		seqID=">"+"{smp}"
+	conda:
+		"samtools_env.yaml"
+	shell:
+		"""
+		echo "Sorting and consensus from Round 2 assembly"
+		samtools sort {input} -O sam -o {output.tmpsort}
+		samtools consensus -m "simple" -c 0.5 -f fasta --show-del no {output.tmpsort} -o {output.outfile}
+		sed -i "s/>.*$/{params.seqID}/" {output.outfile}
+		echo "Done !"
+		"""
+
+rule assemblyStats:
+	input:
+		rules.samtoolsConsensus2.output.tmpsort
+	output:
+		"Results/{smp}_mapping.stats"
+	params:
+		clust_log="Logs/{smp}_assemblyStats.log"
+	conda:
+		"samtools_env.yaml"
+	shell:
+		"""
+		if ! [ $(command -v bc) ] ; then module load bc ; fi
+		flagstat=$(samtools flagstat {input})
+
+		nreads=$(head -n1 <<< "$flagstat" | cut -d' ' -f1)
+		nmapped=$(grep ' mapped (' <<< "$flagstat" | grep -v 'primary' | cut -d' ' -f1)
+		pmapped=$(grep ' mapped (' <<< "$flagstat" | grep -v 'primary' | cut -d' ' -f5 |tr -d '(')
+		covtheo=$(echo "scale=2; 150 * $nmapped / 15948"|bc -l)
+		
+		echo "SAMPLE N_READS N_MAPPED %_MAPPED COV_THEO" >> {output}
+		echo $(basename {input}) $nreads $nmapped $pmapped $covtheo >> {output}
+		"""
+
+

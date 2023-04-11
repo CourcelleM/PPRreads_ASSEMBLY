@@ -1,0 +1,11 @@
+__default__:
+        job-name : "{rule}"
+        queue : "fast"
+        nodes : "--nodes=1 "
+        cpus : "--cpus-per-task=1"
+        time : "--time=1:00:00"
+        out : "--output={params.clust_log}"
+
+BWAmemRef:
+        queue : "fast"
+
