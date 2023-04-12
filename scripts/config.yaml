@@ -11,12 +11,8 @@ ext2: "_R2_001.fastq.gz"
 # Reference genome file
 refgen: "ref/EU267273.fasta"
 
-# Variant calling parameters
-# mincov = the minimum number of reads covering a site to be considered (snippy default=10)
-mincov: 10
-# min frac = the minimum proportion of those reads which must differ from the reference
-minfrac: 0.50
-
 # Consensus building parameters
-# low coverage threshold
-lowcov: 10
+# # mincov = the minimum number of reads covering a site (otherwise: N)
+mincov: 2
+# minfrac = If the second most frequent type is at least H fraction of the most common type then a heterozygous base type will be reported in the consensus
+minfrac: 0.9
