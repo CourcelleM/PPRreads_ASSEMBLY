@@ -49,6 +49,7 @@ rule All:
 	input:
 		expand("Results/"+"{smp}"+"_consensus2.fasta",smp=SAMPLES),
 		expand("Results/{smp}_mapping.stats",smp=SAMPLES),
+		expand("Results/Intermediary_files/{smp}_mapping_to_cons_sort.bam",smp=SAMPLES),
 		DATADIR+refgen+".bwt.2bit.64",
 
 rule BWAindexRef:
@@ -90,23 +91,23 @@ rule samtoolsConsensus:
 	input:
 		rules.BWAmemRef.output
 	output:
-		"Results/Intermediary_files/{smp}_consensus1.fasta"
+		cons="Results/Intermediary_files/{smp}_consensus1.fasta",
+		tmpsort=temp("Results/Intermediary_files/{smp}_mapping_to_ref_sort.sam")
 	params:
 		clust_log="Logs/{smp}_consensus1.log",
-		tmpsort="Results/Intermediary_files/{smp}_mapping_to_ref_sort.sam"
 	conda:
 		"samtools_env.yaml"
 	shell:
 		"""
 		echo "Sorting and consensus from Round 1 assembly"
-		samtools sort {input} -O sam -o {params.tmpsort}
-		samtools consensus -a -f fasta --show-del yes {params.tmpsort} -o {output}
+		samtools sort {input} -O sam -o {output.tmpsort}
+		samtools consensus -a -f fasta --show-del yes {output.tmpsort} -o {output.cons}
 		echo "Done !"
 		"""
 
 rule BWAindexCons:
 	input:
-		rules.samtoolsConsensus.output
+		rules.samtoolsConsensus.output.cons
 	output:
 		"Results/Intermediary_files/{smp}_consensus1.fasta"+".bwt.2bit.64"
 	params:
@@ -125,7 +126,7 @@ rule BWAmemCons:
 		R1=DATADIR+"{smp}"+ext1,
 		R2=DATADIR+"{smp}"+ext2,
 		Ref=rules.BWAindexCons.output,
-		Refpath=rules.samtoolsConsensus.output
+		Refpath=rules.samtoolsConsensus.output.cons
 	output:
 		temp("Results/Intermediary_files/{smp}_mapping_to_cons.sam")
 	params:
@@ -143,7 +144,7 @@ rule samtoolsConsensus2:
 	input:
 		rules.BWAmemCons.output
 	output:
-		tmpsort="Results/Intermediary_files/{smp}_mapping_to_cons_sort.sam",
+		tmpsort=temp("Results/Intermediary_files/{smp}_mapping_to_cons_sort.sam"),
 		outfile="Results/{smp}_consensus2.fasta"
 	params:
 		clust_log="Logs/{smp}_consensus2.log",
@@ -182,6 +183,23 @@ rule assemblyStats:
 		
 		echo "SAMPLE N_READS N_MAPPED %_MAPPED COV_THEO" >> {output}
 		echo $(basename {input}) $nreads $nmapped $pmapped $covtheo >> {output}
+		"""
+
+rule sam2bam:
+	input:
+		S2=rules.samtoolsConsensus2.output.tmpsort,
+		S1=rules.samtoolsConsensus.output.tmpsort
+	output:
+		B1="Results/Intermediary_files/{smp}_mapping_to_ref_sort.bam",
+		B2="Results/Intermediary_files/{smp}_mapping_to_cons_sort.bam"
+	params:
+		clust_log="Logs/{smp}_sam2bam.log"
+	conda:
+		"samtools_env.yaml"
+	shell:
+		"""
+		samtools view -S -b {input.S1} > {output.B1}
+		samtools view -S -b {input.S2} > {output.B2}
 		"""
 
 
