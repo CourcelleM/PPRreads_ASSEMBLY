@@ -9,5 +9,5 @@ if ! [ -d Results/Intermediary_files ] ; then mkdir -p Results/Intermediary_file
 if ! [ -d Logs ] ; then mkdir -p Logs ; fi
 
 # Snakemake command
-snakemake -s scripts/Map_to_reference.snake --keep-going --cores 1 --use-conda --configfile=scripts/config.yaml --cluster-config scripts/cluster.yaml --cluster "sbatch -J {cluster.job-name} -A morbillivirus_assembly -p {cluster.queue} {cluster.time} {cluster.nodes} {cluster.cpus} {cluster.out}" --jobs 100 
+snakemake -s scripts/Map_to_reference.snake --keep-going --cores 1 --use-conda --configfile=scripts/config.yaml --cluster-config scripts/cluster.yaml --cluster "sbatch -J {cluster.job-name} -A morbillivirus_assembly -p {cluster.queue} {cluster.mem} {cluster.time} {cluster.nodes} {cluster.cpus} {cluster.out}" --jobs 100 
 
