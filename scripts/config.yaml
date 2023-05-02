@@ -16,3 +16,6 @@ refgen: "ref/EU267273.fasta"
 mincov: 2
 # minfrac = If the second most frequent type is at least H fraction of the most common type then a heterozygous base type will be reported in the consensus
 minfrac: 0.9
+# minQ = minimum read mapping quality score (read is skipped if lower)
+minQ: 51
+

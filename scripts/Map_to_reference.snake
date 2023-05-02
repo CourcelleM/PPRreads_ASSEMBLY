@@ -23,6 +23,8 @@ refgen=config["refgen"]
 mincov=config["mincov"]
 # minfrac = If the second most frequent type is at least H fraction of the most common type then a heterozygous base type will be reported in the consensus
 minfrac=config["minfrac"]
+# minQ = minimum read mapping quality score (read is skipped if lower)
+minQ=config["minQ"]
 #########################################
 
 SAMPLES, = glob_wildcards(DATADIR+"{sample}"+ext1)
@@ -101,7 +103,7 @@ rule samtoolsConsensus:
 		"""
 		echo "Sorting and consensus from Round 1 assembly"
 		samtools sort {input} -O sam -o {output.tmpsort}
-		samtools consensus -a -f fasta --show-del yes {output.tmpsort} -o {output.cons}
+		samtools consensus -a -f fasta --show-del no {output.tmpsort} -o {output.cons}
 		echo "Done !"
 		"""
 
@@ -136,7 +138,7 @@ rule BWAmemCons:
 	shell:
 		"""
 		echo "Assembly of {input.R1} on {input.Refpath}"
-		bwa-mem2 mem {input.Refpath} {input.R1} {input.R2} > {output}
+		bwa-mem2 mem {input.Refpath} {input.R1} {input.R2} -k 25 > {output}
 		echo "Done ! The output {output} of this rule will be removed and replaced by the sorted version."
 		"""
 
@@ -150,14 +152,15 @@ rule samtoolsConsensus2:
 		clust_log="Logs/{smp}_consensus2.log",
 		seqID=">"+"{smp}",
 		mincov=mincov,
-		minfrac=minfrac
+		minfrac=minfrac,
+		minQ=minQ
 	conda:
 		"samtools_env.yaml"
 	shell:
 		"""
 		echo "Sorting and consensus from Round 2 assembly"
 		samtools sort {input} -O sam -o {output.tmpsort}
-		samtools consensus -m "simple" -A -d {params.mincov} -c 0.5 -H {params.minfrac} -f fasta --show-del no {output.tmpsort} -o {output.outfile}
+		samtools consensus -m "simple" -A -d {params.mincov} -c 0.5 -H {params.minfrac} --min-MQ {params.minQ} -f fasta --show-del no {output.tmpsort} -o {output.outfile}
 		sed -i "s/>.*$/{params.seqID}/" {output.outfile}
 		echo "Done !"
 		"""
