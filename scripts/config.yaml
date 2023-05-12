@@ -11,8 +11,12 @@ ext2: "_R2_001.fastq.gz"
 # Reference genome file
 refgen: "ref/EU267273.fasta"
 
+# Mapping parameters
+# threads = number of threads
+threads: 2
+
 # Consensus building parameters
-# # mincov = the minimum number of reads covering a site (otherwise: N)
+# mincov = the minimum number of reads covering a site (otherwise: N)
 mincov: 2
 # minfrac = If the second most frequent type is at least H fraction of the most common type then a heterozygous base type will be reported in the consensus
 minfrac: 0.9

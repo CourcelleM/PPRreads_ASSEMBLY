@@ -18,6 +18,8 @@ ext2=config["ext2"]
 # Reference genome file
 refgen=config["refgen"]
 
+threads=config["threads"]
+
 # Consensus building parameters
 # mincov = the minimum number of reads covering a site (otherwise: N)
 mincov=config["mincov"]
@@ -70,22 +72,40 @@ rule BWAindexRef:
 		echo "Done !"
 		"""
 
-rule BWAmemRef:
+rule cleanReads:
 	input:
 		R1=DATADIR+"{smp}"+ext1,
-		R2=DATADIR+"{smp}"+ext2,
+                R2=DATADIR+"{smp}"+ext2,
+	output:
+		R1="Results/Intermediary_files/{smp}_R1_clean.fastq.gz",
+		R2="Results/Intermediary_files/{smp}_R2_clean.fastq.gz"
+	params:
+		html="Results/Intermediary_files/{smp}_reads_cleaning.html",
+		clust_log="Logs/{smp}_cleanReads.log"
+	conda:
+		"fastp_env.yaml"
+	shell:
+		"""
+		fastp --in1 {input.R1} --in2 {input.R2} --out1 {output.R1} --out2 {output.R2} -l 150 -h {params.html}
+		"""
+
+rule BWAmemRef:
+	input:
+		R1=rules.cleanReads.output.R1,
+		R2=rules.cleanReads.output.R1,
 		Ref=rules.BWAindexRef.output,
 		Refpath=DATADIR+refgen
 	output:
 		temp("Results/Intermediary_files/{smp}_mapping-to-ref.sam")
 	params:
-		clust_log="Logs/{smp}_mapping-to-ref.log"
+		clust_log="Logs/{smp}_mapping-to-ref.log",
+		threads=threads
 	conda:
 		"Mapping_env.yaml"
 	shell:
 		"""
 		echo "Round 1 assembly of {input.R1} on {input.Refpath}"
-		bwa-mem2 mem -L 8,8 -B 2 {input.Refpath} {input.R1} {input.R2} > {output}
+		bwa-mem2 mem -t {params.threads} -L 8,8 -B 2 {input.Refpath} {input.R1} {input.R2} > {output}
 		echo "Done ! The output {output} of this rule will be removed and replaced by the sorted version."
 		"""
 
@@ -125,20 +145,21 @@ rule BWAindexCons:
 
 rule BWAmemCons:
 	input:
-		R1=DATADIR+"{smp}"+ext1,
-		R2=DATADIR+"{smp}"+ext2,
+		R1=rules.cleanReads.output.R1,
+		R2=rules.cleanReads.output.R2,
 		Ref=rules.BWAindexCons.output,
 		Refpath=rules.samtoolsConsensus.output.cons
 	output:
-		temp("Results/Intermediary_files/{smp}_mapping_to_cons.sam")
+		"Results/Intermediary_files/{smp}_mapping_to_cons.sam"
 	params:
-		clust_log="Logs/{smp}_mapping-to-cons.log"
+		clust_log="Logs/{smp}_mapping-to-cons.log",
+		threads=threads
 	conda:
 		"Mapping_env.yaml"
 	shell:
 		"""
 		echo "Assembly of {input.R1} on {input.Refpath}"
-		bwa-mem2 mem {input.Refpath} {input.R1} {input.R2} -k 25 > {output}
+		bwa-mem2 mem -t {params.threads} {input.Refpath} {input.R1} {input.R2} -T 51 > {output}
 		echo "Done ! The output {output} of this rule will be removed and replaced by the sorted version."
 		"""
 

@@ -7,16 +7,25 @@ __default__:
         out : "--output={params.clust_log}"
         mem : ""
 
+cleanReads:
+        mem : "--mem=50G"
+
 BWAmemRef:
         queue : "fast"
+        cpus : "--cpus-per-task=2"
+        mem : "--mem=10G"
         
 samtoolsConsensus:
         queue : "long"
         time : "--time=5:00:00"
-        mem : "--mem 10G"
+        mem : "--mem=10G"
+
+BWAmemCons:
+        cpus : "--cpus-per-task=2"
+        mem : "--mem=10G"
 
 samtoolsConsensus2:
         queue : "long"
         time : "--time=5:00:00"
-        mem : "--mem 10G"
+        mem : "--mem=10G"
 
