@@ -2,13 +2,13 @@
 ## SCRIPT PARAMETERS - ADAPT HERE
 
 # Directory with input fastq files and reference genome
-DATADIR: "/shared/home/courcellem/MORBILLIVIRUS/ASSEMBLY_SNAKE/data/"
+DATADIR: ""
 
 # Reads file extension (FIRST PART OF FILENAME WILL BE USED AS SAMPLE ID)
 ext1: ".1.fastq.gz"
 ext2: ".2.fastq.gz"
 
-# Reference genome file
+# Reference genome file (in the DATADIR)
 refgen: "ref/Thailande_T7consensus.fasta"
 
 # Cleaning parameters
