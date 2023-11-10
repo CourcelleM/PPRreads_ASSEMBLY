@@ -199,16 +199,7 @@ rule assemblyStats:
 		"samtools_env.yaml"
 	shell:
 		"""
-		if ! [ $(command -v bc) ] ; then module load bc ; fi
-		flagstat=$(samtools flagstat {input})
-
-		nreads=$(head -n1 <<< "$flagstat" | cut -d' ' -f1)
-		nmapped=$(grep ' mapped (' <<< "$flagstat" | grep -v 'primary' | cut -d' ' -f1)
-		pmapped=$(grep ' mapped (' <<< "$flagstat" | grep -v 'primary' | cut -d' ' -f5 |tr -d '(')
-		covtheo=$(echo "scale=2; 150 * $nmapped / 15948"|bc -l)
-		
-		echo "SAMPLE N_READS N_MAPPED %_MAPPED COV_THEO" >> {output}
-		echo $(basename {input}) $nreads $nmapped $pmapped $covtheo >> {output}
+		samtools coverage {input} > {output}
 		"""
 
 rule sam2bam:
