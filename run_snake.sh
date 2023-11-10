@@ -2,7 +2,7 @@
 ## Simple wrapper to running the Map_to_reference snakemake script.
 
 # Load latest version of snakemake installed on the cluster
-module load snakemake/7.7.0
+module load snakemake
 
 # Create the skeleton diretory architecture
 if ! [ -d Results/Intermediary_files ] ; then mkdir -p Results/Intermediary_files ; fi

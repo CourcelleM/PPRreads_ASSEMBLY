@@ -5,11 +5,15 @@
 DATADIR: "/shared/home/courcellem/MORBILLIVIRUS/ASSEMBLY_SNAKE/data/"
 
 # Reads file extension (FIRST PART OF FILENAME WILL BE USED AS SAMPLE ID)
-ext1: "_R1_001.fastq.gz"
-ext2: "_R2_001.fastq.gz"
+ext1: ".1.fastq.gz"
+ext2: ".2.fastq.gz"
 
 # Reference genome file
-refgen: "ref/EU267273.fasta"
+refgen: "ref/Thailande_T7consensus.fasta"
+
+# Cleaning parameters
+# length = minimum read length to be kept
+length: 125
 
 # Mapping parameters
 # threads = number of threads
