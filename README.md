@@ -31,13 +31,13 @@ refgen: "./reference/genome.fasta"
 Additionally, you should edit the cluster.yaml file to adapt it to your cluster rules and account. You will most likely have to change at least the partition and queue occurences according to your cluster's nomenclature. 
 
 ## Running the Pipeline
-###Test run
+### Test run
 Executing the **test_run.sh** script will attempt a snakemake _dry-run_. No analysis are conducted but this may allow you to check that your data are detected correctly and the requirements are fulfilled.
 ```bash
 ./test_run.sh
 ```
 
-###Running the analysis
+### Running the analysis
 ```bash
 ./run_snake.sh
 ```
