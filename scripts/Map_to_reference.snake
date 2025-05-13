@@ -94,7 +94,7 @@ rule cleanReads:
 rule BWAmemRef:
 	input:
 		R1=rules.cleanReads.output.R1,
-		R2=rules.cleanReads.output.R1,
+		R2=rules.cleanReads.output.R2,
 		Ref=rules.BWAindexRef.output,
 		Refpath=DATADIR+refgen
 	output:
